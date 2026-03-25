@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLICK HERE SHOE WEBSITE - DO NOT CLOSE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    min-height: 100%;
+    background: #00cc00;
+    color: #ff00ff;
+    font-family: 'Comic Neue', cursive;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ff00ff' opacity='0.7'/%3E%3C/svg%3E") 16 16, crosshair;
+    overflow-x: hidden;
+  }
+
+  /* Marquee header - distracting */
+  .marquee-bar {
+    background: #ff0000;
+    color: #ffff00;
+    font-family: 'VT323', monospace;
+    font-size: 1.4rem;
+    padding: 6px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .marquee-inner {
+    display: inline-block;
+    animation: marquee 8s linear infinite;
+    padding-left: 100%;
+  }
+
+  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+
+  /* Horrible nav */
+  .nav {
+    background: #0000ff;
+    padding: 8px 12px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+    border-bottom: 4px dashed #ff00ff;
+  }
+
+  .nav-brand {
+    font-family: 'VT323', monospace;
+    font-size: 2.2rem;
+    color: #ffff00;
+    text-shadow: 3px 3px #ff0000, -1px -1px #00ffff;
+    text-decoration: none;
+    margin-right: auto;
+    animation: wobble 1s ease-in-out infinite;
+  }
+
+  @keyframes wobble {
+    0%, 100% { transform: rotate(-1deg); }
+    50% { transform: rotate(1deg); }
+  }
+
+  .nav-btn {
+    font-family: 'Comic Neue', cursive;
+    font-size: 0.7rem;
+    padding: 3px 7px;
+    background: #ff9900;
+    color: #000;
+    border: 2px solid black;
+    cursor: pointer;
+    transform: skewX(-5deg);
+    margin: 1px;
+  }
+
+  .nav-btn:hover { background: #ff0000; color: #fff; }
+
+  /* Back link - hidden, wrong place */
+  .back-link {
+    position: fixed;
+    bottom: 3px;
+    left: 3px;
+    font-size: 0.55rem;
+    color: #003300;
+    text-decoration: none;
+    z-index: 1;
+    opacity: 0.3;
+  }
+
+  /* Main layout - random grid */
+  .chaos-wrap {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.2fr;
+    grid-template-rows: auto;
+    gap: 0;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* Viewer section - mis-labelled */
+  .viewer-col {
+    background: #330033;
+    padding: 6px;
+    position: relative;
+    overflow: hidden;
+    border-right: 3px dotted #00ff00;
+  }
+
+  .viewer-label {
+    font-family: 'VT323', monospace;
+    font-size: 1.8rem;
+    color: #00ff00;
+    text-align: center;
+    background: #000;
+    padding: 2px;
+    letter-spacing: 0.05em;
+    border: 2px solid #ff0000;
+  }
+
+  /* Toggle - confusingly labelled, wrong position */
+  .toggle-container {
+    position: absolute;
+    bottom: 8px;
+    right: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 20;
+  }
+
+  .toggle-lbl {
+    font-size: 0.5rem;
+    color: #ff00ff;
+    background: #000033;
+    padding: 1px 2px;
+    text-align: center;
+    font-weight: bold;
+    letter-spacing: 0;
+  }
+
+  .mode-bad-btn {
+    font-family: 'Comic Neue', cursive;
+    font-size: 0.65rem;
+    padding: 4px 5px;
+    border: none; cursor: pointer;
+    text-align: center;
+    display: block; width: 100%;
+    transition: none;
+  }
+
+  .mode-bad-btn.act { background: #ff0000; color: #00ff00; font-weight: 700; }
+  .mode-bad-btn:not(.act) { background: #888; color: #000; }
+
+  model-viewer {
+    width: 100%;
+    height: 400px;
+    background: #220022;
+    display: block;
+    margin-top: 2px;
+    /* intentionally inverted */
+    transform: scaleX(-1);
+  }
+
+  /* AR view - bad version */
+  .ar-bad-view {
+    display: none;
+    width: 100%;
+    height: 400px;
+    position: relative;
+    background: #001100;
+    margin-top: 2px;
+  }
+
+  .ar-bad-view.on { display: block; }
+
+  .ar-bad-video { width: 100%; height: 100%; object-fit: cover; display: none; }
+  .ar-bad-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+
+  .ar-bad-start {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #001100; gap: 6px; padding: 10px;
+  }
+
+  .ar-bad-start p {
+    font-size: 0.6rem; color: #00ff00; text-align: center;
+    font-family: 'VT323', monospace; font-size: 0.9rem; line-height: 1.2;
+  }
+
+  .ar-bad-btn {
+    padding: 3px 8px;
+    background: #ff00ff; color: #000;
+    border: 3px outset #cc00cc; cursor: pointer;
+    font-size: 0.65rem; font-family: 'Comic Neue', cursive;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .ar-bad-hint {
+    position: absolute; top: 2px; left: 2px;
+    font-size: 0.55rem; color: #00ff00; font-family: 'VT323', monospace;
+    background: rgba(0,0,0,0.5); padding: 2px;
+    line-height: 1.1;
+  }
+
+  /* Middle column - crammed shoe info */
+  .info-col {
+    background: #ffff00;
+    color: #000;
+    padding: 5px 4px;
+    overflow-y: auto;
+    border-right: 3px dotted #ff00ff;
+    max-height: calc(100vh - 80px);
+  }
+
+  .info-col h1 {
+    font-family: 'VT323', monospace;
+    font-size: 2.4rem;
+    color: #ff0000;
+    text-shadow: 2px 2px #0000ff;
+    line-height: 0.9;
+    margin-bottom: 4px;
+  }
+
+  .info-col .price {
+    font-size: 0.7rem; /* tiny - intentionally hard to read */
+    color: #333;
+    margin-bottom: 6px;
+  }
+
+  .desc-wall {
+    font-size: 0.65rem;
+    line-height: 1.3;
+    color: #330000;
+    background: #ffcc00;
+    padding: 4px;
+    margin-bottom: 6px;
+    border: 1px solid #cc0000;
+  }
+
+  /* Confusing size section */
+  .size-section { margin-bottom: 6px; }
+  .size-section h4 { font-size: 0.75rem; color: #0000cc; margin-bottom: 2px; }
+
+  .size-row {
+    display: flex; flex-wrap: wrap; gap: 1px;
+  }
+
+  .sz {
+    padding: 1px 3px;
+    border: 1px solid #000;
+    font-size: 0.6rem; cursor: pointer;
+    background: #fff; color: #000;
+  }
+
+  .sz.pick { background: #0000cc; color: #fff; }
+  .sz.na { background: #ff0000; color: #ff0000; /* invisible red on red */ cursor: not-allowed; }
+
+  /* Nonsense color picker */
+  .col-section { margin-bottom: 6px; }
+  .col-section h4 { font-size: 0.75rem; color: #0000cc; }
+  .col-row { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 2px; }
+
+  .col-sw {
+    width: 18px; height: 18px; cursor: pointer;
+    border: 1px solid #000;
+  }
+
+  /* Right column - confusing CTA placement */
+  .cta-col {
+    background: #cc00cc;
+    padding: 4px;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+
+  .popup-thing {
+    background: #ffff00; border: 3px solid #ff0000;
+    padding: 6px; margin-bottom: 4px;
+    font-size: 0.65rem; color: #ff0000;
+    font-family: 'VT323', monospace; font-size: 1rem;
+    line-height: 1.1;
+    animation: shake 0.4s ease-in-out infinite;
+  }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-2px) rotate(-0.5deg); }
+    75% { transform: translateX(2px) rotate(0.5deg); }
+  }
+
+  .wrong-btn {
+    width: 100%; padding: 12px;
+    margin-bottom: 4px;
+    cursor: pointer; border: none;
+    font-family: 'Comic Neue', cursive; font-size: 1rem; font-weight: 700;
+  }
+
+  /* Add to bag is oddly-named and non-obvious */
+  .wrong-btn.primary {
+    background: #888888;
+    color: #aaaaaa; /* low contrast */
+    font-size: 0.8rem;
+  }
+
+  /* Wishlist button looks like CTA - reversed hierarchy */
+  .wrong-btn.fake-primary {
+    background: #ff0000;
+    color: #fff;
+    font-size: 1.2rem;
+    text-shadow: 1px 1px #000;
+    border: 3px ridge #ffff00;
+    padding: 16px;
+  }
+
+  .rating-garbage {
+    font-size: 0.6rem;
+    color: #00ff00;
+    background: #000033;
+    padding: 3px;
+    text-align: center;
+    margin-bottom: 4px;
+    font-family: 'VT323', monospace;
+    font-size: 0.9rem;
+  }
+
+  .fine-print {
+    font-size: 0.45rem; color: #550055; margin-top: 2px; line-height: 1.2;
+    font-style: italic;
+  }
+
+  /* Random floating elements */
+  .floater {
+    position: fixed;
+    z-index: 200;
+    pointer-events: none;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    color: #ff0000;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    33% { transform: translateY(-10px) rotate(5deg); }
+    66% { transform: translateY(5px) rotate(-3deg); }
+  }
+
+  /* Counter */
+  .counter-bar {
+    background: #ff0000; color: #ffff00;
+    font-family: 'VT323', monospace; font-size: 1rem;
+    text-align: center; padding: 3px;
+    letter-spacing: 0.1em;
+  }
+
+  /* Toast (confusingly placed) */
+  .bad-toast {
+    position: fixed; top: 40px; right: 0;
+    background: #ffff00; border: 2px solid #ff0000;
+    color: #0000ff; padding: 5px 8px;
+    font-size: 0.75rem; font-weight: 700;
+    transform: translateX(110%);
+    transition: transform 0.15s;
+    z-index: 300; max-width: 160px;
+    word-break: break-all;
+  }
+
+  .bad-toast.show { transform: translateX(0); }
+
+  /* Accessibility disaster - these labels mean nothing */
+  label { font-size: 0.55rem; }
+
+</style>
+</head>
+<body>
+
+<!-- Floating distractions -->
+<div class="floater" style="top:30%; left:2%; animation-delay:0s;">🔥HOT🔥</div>
+<div class="floater" style="top:55%; left:94%; animation-delay:1s;">💥WOW💥</div>
+<div class="floater" style="top:75%; left:5%; animation-delay:2s;">⭐SALE⭐</div>
+
+<!-- Marquee -->
+<div class="marquee-bar">
+  <div class="marquee-inner">⚠️ LIMITED TIME ONLY!! CLICK NOW!! BUY SHOES!! 50% OFF!! NOT REALLY!! JUST LOOK!! AR FEATURE!! CLICK THE BUTTONS!! SHOES ARE HERE!! DO NOT LEAVE!! ⚠️</div>
+</div>
+
+<!-- Counter bar - unnecessary -->
+<div class="counter-bar" id="counter-bar">
+  ⏰ OFFER EXPIRES IN: <span id="countdown">09:59</span> · 🔴 <span id="viewers">47</span> PEOPLE LOOKING NOW
+</div>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="#" class="nav-brand">SH0E$ .COM</a>
+  <button class="nav-btn" onclick="badToast('NEWSLETTER SIGN UP ERROR 404')">NEWSLETTER</button>
+  <button class="nav-btn" onclick="badToast('LOADING... PLEASE WAIT')">CONTACT</button>
+  <button class="nav-btn" onclick="badToast('UNDER CONSTRUCTION')">ABOUT</button>
+  <button class="nav-btn" onclick="badToast('CART EMPTY?? CHECK SIZE')">🛒CART(0)</button>
+  <button class="nav-btn" onclick="badToast('PLEASE LOG IN FIRST')">LOGIN/SIGNUP/ACCOUNT</button>
+</nav>
+
+<!-- Main chaos layout -->
+<div class="chaos-wrap">
+
+  <!-- Viewer column -->
+  <div class="viewer-col">
+    <div class="viewer-label">📦 PRODUCT IMAGE VIEWER 2.0 📦</div>
+
+    <!-- Model viewer - mirrored -->
+    <model-viewer
+      id="mv"
+      src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+      alt="shoe"
+      camera-controls
+      auto-rotate
+      rotation-per-second="120deg"
+      min-camera-orbit="auto auto 20%"
+      max-camera-orbit="auto auto 200%"
+      style="display:block;"
+    ></model-viewer>
+
+    <!-- AR bad view -->
+    <div class="ar-bad-view" id="ar-bad">
+      <div class="ar-bad-start" id="ar-start-bad">
+        <p>⚠️ AR SHOE FEATURE<br>REQUIRES CAMERA<br>CLICK BUTTON TO<br>ACTIVATE PLEASE</p>
+        <button class="ar-bad-btn" onclick="badStartAR()">CLICK HERE FOR AR</button>
+      </div>
+      <video id="ar-vid" class="ar-bad-video" autoplay playsinline muted></video>
+      <canvas id="ar-cnv" class="ar-bad-canvas"></canvas>
+      <div class="ar-bad-hint" id="ar-hint-bad" style="display:none;">
+        SHOE IS ON SCREEN<br>MAYBE? LOOK AT<br>YOUR FEET POSSIBLY
+      </div>
+    </div>
+
+    <!-- Toggle - hidden in corner, mislabelled -->
+    <div class="toggle-container">
+      <div class="toggle-lbl">MODE???</div>
+      <button class="mode-bad-btn act" id="bb3d" onclick="badSetMode('3d')">IMAGE</button>
+      <button class="mode-bad-btn" id="bbar" onclick="badSetMode('ar')">CAMERA THING</button>
+    </div>
+  </div>
+
+  <!-- Info column -->
+  <div class="info-col">
+    <h1>SHOE<br>PRODUCT<br>#A4421-XB</h1>
+
+    <!-- Price buried and confusing -->
+    <div class="price">
+      USD $189.00 (plus tax plus shipping varies by region see terms applies to select items only subject to availability)
+    </div>
+
+    <!-- Wall of text description -->
+    <div class="desc-wall">
+      This shoe product is a shoe that you can wear on your feet. The shoe has a sole and an upper and laces. The shoe is comfortable maybe depending on your foot. Colors available: see below. Sizes available: see below. Some sizes not available. Shoe is lightweight and also heavy depending on perspective. Material: shoe material. Care instructions: clean with shoe cleaner. Imported. SKU: 4421XB-SHOE-COLORNAME. This listing is for ONE shoe (pair). Allow 3-15 business days for shipping. Returns accepted only if shoe is in original box with original laces in original condition unworn with receipt and only between Tuesday and Thursday 11am-2pm EST excluding holidays. We are not responsible for lost packages. Shoe may appear different on screen due to monitor calibration. AR feature is for entertainment purposes only and does not guarantee accurate fit. By purchasing you agree to our terms.
+    </div>
+
+    <!-- Size section - confusing units -->
+    <div class="size-section">
+      <h4>SIZE (CHOOSE ONE):</h4>
+      <p style="font-size:0.55rem;color:#cc0000;">⚠ US SIZES ONLY (maybe, or EU? check description)</p>
+      <div class="size-row">
+        <div class="sz na" title="N/A" onclick="badPickSize(this,'5')">5</div>
+        <div class="sz" onclick="badPickSize(this,'6')">6</div>
+        <div class="sz" onclick="badPickSize(this,'6.5')">6.5</div>
+        <div class="sz" onclick="badPickSize(this,'7')">7</div>
+        <div class="sz" onclick="badPickSize(this,'7.5')">7.5</div>
+        <div class="sz" onclick="badPickSize(this,'8')">8</div>
+        <div class="sz" onclick="badPickSize(this,'9')">9</div>
+        <div class="sz na" onclick="badPickSize(this,'9.5')">9.5</div>
+        <div class="sz" onclick="badPickSize(this,'10')">10</div>
+        <div class="sz" onclick="badPickSize(this,'10.5')">10.5</div>
+        <div class="sz" onclick="badPickSize(this,'11')">11</div>
+        <div class="sz na" onclick="badPickSize(this,'12')">12</div>
+        <div class="sz" onclick="badPickSize(this,'13')">13</div>
+      </div>
+      <p style="font-size:0.5rem;color:#880000;margin-top:2px;">Red = available. Others = check store.</p>
+    </div>
+
+    <!-- Color - confusing -->
+    <div class="col-section">
+      <h4>CHOOSE COLOUR OPTION:</h4>
+      <div class="col-row" id="col-row">
+        <div class="col-sw" style="background:#1a1a1a" title="Black?" onclick="badPickColor(this,'option1')"></div>
+        <div class="col-sw" style="background:#f0f0f0" title="White?" onclick="badPickColor(this,'option2')"></div>
+        <div class="col-sw" style="background:#c9a84c" title="option3" onclick="badPickColor(this,'option3')"></div>
+        <div class="col-sw" style="background:#4c4cc9" title="colour4" onclick="badPickColor(this,'colour4')"></div>
+        <div class="col-sw" style="background:#c94c4c" title="option_r" onclick="badPickColor(this,'option_r')"></div>
+      </div>
+      <p id="col-lbl" style="font-size:0.5rem;color:#000080;margin-top:1px;">colour: none selected (required?)</p>
+    </div>
+
+    <div class="rating-garbage">RATING: ⭐⭐⭐☆☆ (click stars to rate BEFORE buying)</div>
+  </div>
+
+  <!-- CTA col - reversed hierarchy, confusing -->
+  <div class="cta-col">
+    <div class="popup-thing">
+      ⚠️ HURRY!! ONLY<br><span id="stock">3</span> LEFT!!<br>IN STOCK<br>MAYBE!!!
+    </div>
+
+    <div class="rating-garbage" style="background:#ffff00;color:#ff0000;margin-bottom:4px;">
+      2184 REVIEWS READ THEM ALL BEFORE YOU BUY (opens in new tab maybe)
+    </div>
+
+    <!-- Wishlist button looks like primary CTA -->
+    <button class="wrong-btn fake-primary" onclick="badToast('ERROR: MUST BE LOGGED IN TO WISHLIST ITEM. CREATE ACCOUNT FIRST OR LOGIN IF ALREADY HAVE ACCOUNT')">
+      ❤️ SAVE THIS ITEM WISHLIST BUTTON
+    </button>
+
+    <!-- Real CTA looks secondary/disabled -->
+    <button class="wrong-btn primary" onclick="badAddCart()">
+      proceed to add item (select size/colour first if required)
+    </button>
+
+    <button class="wrong-btn" style="background:#00cccc;color:#000;font-size:0.65rem;" onclick="badToast('SHARE FEATURE COMING SOON™')">
+      📤 SHARE THIS PRODUCT WITH EVERYONE YOU KNOW AND ALSO STRANGERS
+    </button>
+
+    <button class="wrong-btn" style="background:#ff9900;color:#000;font-size:0.65rem;" onclick="badToast('COMPARE: SELECT ANOTHER SHOE TO COMPARE (go back and browse)')">
+      🔄 ADD TO COMPARISON TOOL
+    </button>
+
+    <div class="fine-print">
+      *Free shipping on orders over $500 only. Standard shipping $12.99-$29.99 depending on zone. Express available for extra cost. AR Try-On is a visual tool only. Colours on screen may vary. Sizes may run large or small, see sizing chart (PDF, external link). Not responsible for fit. Returns policy: see full returns document link (link unavailable on mobile). Prices in USD unless otherwise specified. Taxes calculated at checkout. Subject to change without notice. Promotional pricing applies to in-stock items only and may not be combined with other offers. Limited to one per customer per household per calendar year. Void where prohibited. Management reserves all rights. ©2024 SH0E$.COM ALL RIGHTS RESERVED DO NOT REPRODUCE.
+    </div>
+  </div>
+</div>
+
+<!-- Back link - hidden, tiny -->
+<a href="index.html" class="back-link">back to index</a>
+
+<!-- Bad toast - top right, wrong place -->
+<div class="bad-toast" id="bad-toast">MSG</div>
+
+<script>
+  // Fake countdown
+  let secs = 599;
+  setInterval(() => {
+    secs--;
+    if (secs < 0) secs = 599;
+    const m = String(Math.floor(secs/60)).padStart(2,'0');
+    const s = String(secs%60).padStart(2,'0');
+    document.getElementById('countdown').textContent = `${m}:${s}`;
+    // Random viewer count - annoying
+    document.getElementById('viewers').textContent = Math.floor(40 + Math.random()*20);
+  }, 1000);
+
+  let badMode = '3d';
+  let badStream = null;
+
+  function badSetMode(mode) {
+    badMode = mode;
+    const mv = document.getElementById('mv');
+    const arBad = document.getElementById('ar-bad');
+    const bb3d = document.getElementById('bb3d');
+    const bbar = document.getElementById('bbar');
+
+    if (mode === '3d') {
+      mv.style.display = 'block';
+      arBad.classList.remove('on');
+      bb3d.classList.add('act'); bbar.classList.remove('act');
+      if (badStream) { badStream.getTracks().forEach(t => t.stop()); badStream = null; }
+    } else {
+      mv.style.display = 'none';
+      arBad.classList.add('on');
+      bbar.classList.add('act'); bb3d.classList.remove('act');
+    }
+  }
+
+  async function badStartAR() {
+    try {
+      // Try front camera first (wrong choice - should be back camera for feet)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' } // wrong: front camera
+      });
+      badStream = stream;
+      const vid = document.getElementById('ar-vid');
+      const cnv = document.getElementById('ar-cnv');
+      const start = document.getElementById('ar-start-bad');
+      const hint = document.getElementById('ar-hint-bad');
+
+      vid.srcObject = stream;
+      vid.style.display = 'block';
+      cnv.style.display = 'block';
+      start.style.display = 'none';
+      hint.style.display = 'block';
+
+      vid.onloadedmetadata = () => {
+        cnv.width = vid.videoWidth;
+        cnv.height = vid.videoHeight;
+        badARRender(vid, cnv);
+      };
+    } catch (err) {
+      badToast('CAMERA ERROR: ' + err.message + ' - TRY REFRESHING PAGE OR USE DIFFERENT BROWSER OR DEVICE');
+    }
+  }
+
+  // Bad AR rendering - shoe placed incorrectly/randomly at top instead of feet
+  function badARRender(vid, cnv) {
+    const ctx = cnv.getContext('2d');
+    ctx.drawImage(vid, 0, 0, cnv.width, cnv.height);
+
+    // Place shoe at top (wrong - should be at feet/bottom)
+    const t = Date.now() / 1000;
+    const wobble = Math.sin(t * 8) * 6; // too fast, jittery
+
+    ctx.save();
+    ctx.translate(cnv.width * 0.3 + wobble, cnv.height * 0.15); // wrong position
+    ctx.rotate(Math.sin(t * 3) * 0.3); // rotating randomly
+
+    // Flat crude rectangle shoe
+    ctx.fillStyle = 'rgba(255, 0, 255, 0.7)';
+    ctx.fillRect(-60, -20, 120, 45);
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-60, -20, 120, 45);
+
+    // Wrong label
+    ctx.fillStyle = '#ffff00';
+    ctx.font = 'bold 10px Comic Sans MS, cursive';
+    ctx.textAlign = 'center';
+    ctx.fillText('SHOE HERE', 0, 5);
+
+    ctx.restore();
+
+    // Random noise overlay - ugly
+    for (let i = 0; i < 50; i++) {
+      ctx.fillStyle = `rgba(255,0,255,${Math.random()*0.05})`;
+      ctx.fillRect(Math.random()*cnv.width, Math.random()*cnv.height, 2, 2);
+    }
+
+    requestAnimationFrame(() => badARRender(vid, cnv));
+  }
+
+  function badPickSize(el, size) {
+    if (el.classList.contains('na')) {
+      badToast('SIZE ' + size + ' UNAVAILABLE OR AVAILABLE CHECK DESCRIPTION');
+      return;
+    }
+    document.querySelectorAll('.sz').forEach(s => s.classList.remove('pick'));
+    el.classList.add('pick');
+    // No visible confirmation
+  }
+
+  function badPickColor(el, name) {
+    document.querySelectorAll('.col-sw').forEach(s => s.style.outline = '');
+    el.style.outline = '2px solid #ff0000';
+    document.getElementById('col-lbl').textContent = 'colour: ' + name + ' (name pending)';
+  }
+
+  function badAddCart() {
+    // Always fails or confuses
+    const picked = document.querySelector('.sz.pick');
+    if (!picked) {
+      badToast('ERROR: YOU MUST SELECT SIZE. SCROLL UP. SIZE IS REQUIRED FIELD. TRY AGAIN.');
+      return;
+    }
+    // Success but confusing message
+    badToast('ITEM MAY HAVE BEEN ADDED. CHECK CART. CART ICON IS IN NAV. POSSIBLY.');
+  }
+
+  let toastTmr;
+  function badToast(msg) {
+    const t = document.getElementById('bad-toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTmr);
+    toastTmr = setTimeout(() => t.classList.remove('show'), 1500); // disappears too fast
+  }
+</script>
+</body>
+</html>
