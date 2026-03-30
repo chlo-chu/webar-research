@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SOLE — Virtual Try-On (Good Design)</title>
+<title>SOLE — Virtual Try-On (Design A)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 
@@ -56,7 +56,7 @@
   .hint-item { font-size: 0.68rem; color: rgba(255,255,255,0.4); white-space: nowrap; }
 
   /* AR view */
-  #view-ar { flex: 1; position: relative; display: none; flex-direction: column; }
+  #view-ar { flex: 1; position: relative; display: none; flex-direction: column; min-height: 500px; }
   #view-ar.active { display: flex; }
 
   /* AR start screen */
@@ -81,15 +81,6 @@
   .ar-stage { position: relative; flex: 1; width: 100%; overflow: hidden; background: #000; }
   #handTrackerCanvas { display: block; width: 100%; height: 100%; object-fit: cover; }
   #threeCanvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-
-  /* HUD pill */
-  .ar-hud { position: absolute; bottom: 1.2rem; left: 50%; transform: translateX(-50%); z-index: 25; display: none; align-items: center; gap: 0.6rem; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 0.6rem 1.4rem; white-space: nowrap; transition: border-color 0.3s; }
-  .ar-hud.show { display: flex; }
-  .ar-hud.detected { border-color: rgba(201,168,76,0.5); }
-  .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mid); transition: background 0.3s; flex-shrink: 0; }
-  .pulse-dot.active { background: var(--accent); animation: pulse 2s ease-in-out infinite; }
-  .ar-hud span { font-size: 0.78rem; color: rgba(255,255,255,0.75); }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
 
   /* ── SIDE PANEL ── */
   .side-panel { border-left: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; overflow-y: auto; }
@@ -173,7 +164,7 @@
   <nav class="topbar">
     <a href="index.html" class="back-btn">← Back</a>
     <div  class="logo">SOLE<span>.</span></div><!--<a href="index.html" class="logo">SOLE<span>.</span></a>-->
-    <div class="product-chip">Good Design</div>
+    <div class="product-chip">Design A</div>
   </nav>
 
   <div class="main">
@@ -377,7 +368,6 @@ function setMode(mode) {
     document.getElementById('ar-start-screen').classList.remove('hidden');
     document.getElementById('ar-spinner').classList.remove('show');
     document.getElementById('ar-stage').style.display = 'none';
-    document.getElementById('ar-hud').classList.remove('show');
     document.getElementById('ar-start-btn').disabled = false;
   } else {
     v3d.style.display = 'none';
@@ -394,7 +384,6 @@ function setMode(mode) {
 function showARStage() {
   document.getElementById('ar-spinner').classList.remove('show');
   document.getElementById('ar-stage').style.display = 'block';
-  document.getElementById('ar-hud').classList.add('show');
 }
 
 /* ── AR START ── */
@@ -402,45 +391,24 @@ function showARStage() {
 // the browser prompt is resolved before startWebar() (and HandTrackerThreeHelper)
 // touch the canvases — this ensures the live stream is already active when the
 // tracker initialises, which is what makes the feed actually appear.
+/* ── AR START ── */
 function startAR() {
   document.getElementById('ar-start-screen').classList.add('hidden');
   document.getElementById('ar-spinner').classList.add('show');
   document.getElementById('ar-spinner-msg').textContent = 'Requesting camera…';
-  document.getElementById('status-text').textContent = 'Waiting for camera…';
-
-  // Step 1 — request permission and hold the stream open
-  navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-    .then(function(permissionStream) {
-      // Permission granted — hand off to the script loader
-      document.getElementById('ar-spinner-msg').textContent = 'Loading foot tracker…';
-      _initWebarAfterPermission(permissionStream);
-    })
-    .catch(function(err) {
-      // User denied or device unavailable — restore the start screen
-      console.warn('Camera permission denied or unavailable:', err);
-      document.getElementById('ar-start-screen').classList.remove('hidden');
-      document.getElementById('ar-spinner').classList.remove('show');
-      document.getElementById('ar-start-btn').disabled = false;
-      document.getElementById('status-text').textContent = 'Camera access required for AR';
-    });
-}
-
-// Step 2 — once we have the permission stream, load startWebar.js (if needed)
-// then call startWebar(). We stop the permission stream immediately before
-// handing off so HandTrackerThreeHelper can open its own stream cleanly.
-function _initWebarAfterPermission(permissionStream) {
-  // Release the probe stream — the tracker will open its own
-  permissionStream.getTracks().forEach(function(t) { t.stop(); });
+  document.getElementById('status-text').textContent = 'Loading AR…';
 
   function _launch() {
     _arStarted = true;
-    startWebar();  // uses #handTrackerCanvas and #ARCanvas
+    startWebar();   // defined in startWebar.js — uses #handTrackerCanvas and #ARCanvas
     showARStage();
   }
 
   if (_arScriptLoaded) {
+    // Script already in the page — call the entry point directly
     _launch();
   } else {
+    // First time: inject the script, then launch
     const s = document.createElement('script');
     s.src = 'startWebar.js';
     s.onload = function() {
@@ -453,7 +421,6 @@ function _initWebarAfterPermission(permissionStream) {
       document.getElementById('ar-start-screen').classList.remove('hidden');
       document.getElementById('ar-spinner').classList.remove('show');
       document.getElementById('ar-start-btn').disabled = false;
-      document.getElementById('status-text').textContent = 'Failed to load AR tracker';
     };
     document.body.appendChild(s);
   }
