@@ -3,491 +3,329 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SOLE — Try On Shoes (Good Design)</title>
+<title>SOLE — Virtual Try-On (Good Design)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 
-<!-- Model Viewer for 3D/AR -->
+<!-- model-viewer for 3D mode -->
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+
+<!-- WebAR.rocks + Three.js (local) -->
+<script src="util/dist/WebARRocksHand.js"></script>
+<script src="util/libs/three/v131/build/three.js"></script>
+<script src="util/libs/three/v131/examples/js/loaders/GLTFLoader.js"></script>
+<script src="util/helpers/HandTrackerThreeHelper.js"></script>
+<script src="util/helpers/landmarksStabilizers/OneEuroLMStabilizer.js"></script>
+
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --ink: #0c0c0c;
-    --cream: #f4efe6;
-    --gold: #c9a84c;
-    --gold-dim: rgba(201,168,76,0.15);
-    --mid: #6a6a6a;
-    --panel: #141414;
-    --border: #222;
-    --accent: #4caf82;
-    --r: 10px;
+    --ink: #0c0c0c; --cream: #f4efe6; --gold: #c9a84c;
+    --gold-dim: rgba(201,168,76,0.15); --mid: #6a6a6a;
+    --panel: #141414; --border: #222; --accent: #4caf82; --r: 10px;
   }
+  html, body { height: 100%; background: var(--ink); color: var(--cream); font-family: 'DM Sans', sans-serif; overflow: hidden; }
+  .app { height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
 
-  html, body { height: 100%; background: var(--ink); color: var(--cream); font-family: 'DM Sans', sans-serif; }
-
-  /* ── Layout ── */
-  .app {
-    min-height: 100vh;
-    display: grid;
-    grid-template-rows: auto 1fr auto;
-  }
-
-  /* ── Top Nav ── */
-  .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.8rem;
-    border-bottom: 1px solid var(--border);
-    background: rgba(12,12,12,0.95);
-    backdrop-filter: blur(12px);
-    position: sticky;
-    top: 0;
-    z-index: 50;
-  }
-
+  /* ── NAV ── */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.8rem; border-bottom: 1px solid var(--border); background: rgba(12,12,12,0.97); backdrop-filter: blur(12px); position: relative; z-index: 50; }
   .logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 0.1em; color: var(--cream); text-decoration: none; }
   .logo span { color: var(--gold); }
-
-  .back-btn {
-    display: flex; align-items: center; gap: 0.4rem;
-    font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--mid); text-decoration: none; transition: color 0.2s;
-  }
+  .back-btn { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mid); text-decoration: none; transition: color 0.2s; }
   .back-btn:hover { color: var(--cream); }
+  .product-chip { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; background: var(--gold-dim); color: var(--gold); padding: 0.3rem 0.8rem; border-radius: 20px; border: 1px solid rgba(201,168,76,0.3); }
 
-  .product-chip {
-    font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase;
-    background: var(--gold-dim); color: var(--gold); padding: 0.3rem 0.8rem;
-    border-radius: 20px; border: 1px solid rgba(201,168,76,0.3);
-  }
+  /* ── MAIN ── */
+  .main { display: grid; grid-template-columns: 1fr 340px; min-height: 0; overflow: hidden; }
 
-  /* ── Main content ── */
-  .main { display: grid; grid-template-columns: 1fr 360px; gap: 0; min-height: 0; }
+  /* ── VIEWER ── */
+  .viewer-wrap { position: relative; background: radial-gradient(ellipse at center, #1a1a1a, #0c0c0c); display: flex; flex-direction: column; overflow: hidden; }
 
-  /* ── Viewer area ── */
-  .viewer-wrap {
-    position: relative;
-    background: radial-gradient(ellipse at center, #1a1a1a 0%, #0c0c0c 100%);
-    min-height: 500px;
-    display: flex; flex-direction: column;
-  }
-
-  /* Mode toggle */
-  .mode-toggle {
-    position: absolute;
-    top: 1.2rem; left: 50%; transform: translateX(-50%);
-    z-index: 10;
-    display: flex; align-items: center;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(12px);
-    border: 1px solid var(--border); border-radius: 40px; padding: 4px;
-    gap: 2px;
-  }
-
-  .mode-btn {
-    padding: 0.55rem 1.4rem;
-    border-radius: 32px; border: none; cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.78rem; font-weight: 500; letter-spacing: 0.06em;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-    display: flex; align-items: center; gap: 0.4rem;
-  }
-
-  .mode-btn.active {
-    background: var(--gold); color: #0c0c0c;
-    box-shadow: 0 2px 12px rgba(201,168,76,0.4);
-  }
-
+  /* Mode toggle — centered at top */
+  .mode-toggle { position: absolute; top: 1.2rem; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; align-items: center; background: rgba(0,0,0,0.75); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 40px; padding: 4px; gap: 2px; }
+  .mode-btn { padding: 0.55rem 1.4rem; border-radius: 32px; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; font-weight: 500; letter-spacing: 0.06em; transition: all 0.3s ease; white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; }
+  .mode-btn.active { background: var(--gold); color: #0c0c0c; box-shadow: 0 2px 12px rgba(201,168,76,0.4); }
   .mode-btn:not(.active) { background: transparent; color: var(--mid); }
   .mode-btn:not(.active):hover { color: var(--cream); }
 
-  /* model-viewer for 3D mode */
-  model-viewer {
-    width: 100%; flex: 1; min-height: 480px;
-    background: transparent;
-    --poster-color: transparent;
-  }
+  /* 3D view */
+  #view-3d { flex: 1; display: flex; flex-direction: column; position: relative; }
+  model-viewer { flex: 1; min-height: 500px; width: 100%; background: transparent; --poster-color: transparent; }
+  .viewer-hint { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; gap: 1.2rem; align-items: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 0.5rem 1.2rem; z-index: 5; pointer-events: none; }
+  .hint-item { font-size: 0.68rem; color: rgba(255,255,255,0.4); white-space: nowrap; }
 
-  /* AR camera view */
-  .ar-view {
-    flex: 1; min-height: 480px; position: relative;
-    display: none; flex-direction: column; align-items: center; justify-content: center;
-  }
-
-  .ar-view.active { display: flex; }
-
-  .ar-view video {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-  }
-
-  .ar-overlay {
-    position: absolute; inset: 0;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: flex-end;
-    padding-bottom: 2rem;
-    pointer-events: none;
-  }
-
-  .ar-canvas {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-  }
-
-  .ar-hint {
-    background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 24px; padding: 0.6rem 1.4rem;
-    font-size: 0.78rem; color: rgba(255,255,255,0.8);
-    display: flex; align-items: center; gap: 0.5rem;
-    pointer-events: auto;
-  }
-
-  .pulse-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--accent);
-    animation: pulse 2s ease-in-out infinite;
-  }
+  /* AR view */
+  #view-ar { flex: 1; position: relative; display: none; flex-direction: column; }
+  #view-ar.active { display: flex; }
 
   /* AR start screen */
-  .ar-start {
-    position: absolute; inset: 0;
-    background: radial-gradient(ellipse at center, #1a1a1a, #0c0c0c);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 1.2rem; z-index: 5;
-  }
-
-  .ar-start-icon {
-    width: 72px; height: 72px; border-radius: 50%;
-    background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 2rem;
-  }
-
-  .ar-start h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.08em; }
-  .ar-start p { font-size: 0.82rem; color: var(--mid); text-align: center; max-width: 260px; line-height: 1.6; }
-
-  .ar-start-btn {
-    margin-top: 0.4rem;
-    padding: 0.85rem 2rem;
-    background: var(--gold); color: var(--ink);
-    border: none; border-radius: var(--r); cursor: pointer;
-    font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500;
-    letter-spacing: 0.08em; transition: all 0.2s ease;
-  }
-
+  .ar-start-screen { position: absolute; inset: 0; z-index: 20; background: radial-gradient(ellipse at center, #1a1a1a, #0c0c0c); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2rem; padding: 2rem; }
+  .ar-start-screen.hidden { display: none; }
+  .ar-icon { width: 72px; height: 72px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+  .ar-start-screen h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 0.08em; }
+  .ar-start-screen p { font-size: 0.82rem; color: var(--mid); text-align: center; max-width: 280px; line-height: 1.7; }
+  .ar-note { font-size: 0.72rem; color: #444; text-align: center; max-width: 280px; line-height: 1.5; }
+  .ar-start-btn { padding: 0.9rem 2.2rem; background: var(--gold); color: var(--ink); border: none; border-radius: var(--r); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 500; letter-spacing: 0.08em; transition: all 0.2s; }
   .ar-start-btn:hover { background: #e0bb5a; transform: translateY(-1px); }
+  .ar-start-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-  /* 3D controls hint */
-  .viewer-hint {
-    position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 1.2rem; align-items: center;
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.06); border-radius: 20px;
-    padding: 0.5rem 1.2rem; z-index: 5;
-  }
+  /* Spinner */
+  .ar-spinner-screen { position: absolute; inset: 0; z-index: 18; background: radial-gradient(ellipse at center, #1a1a1a, #0c0c0c); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; }
+  .ar-spinner-screen.show { display: flex; }
+  .spinner { width: 44px; height: 44px; border: 3px solid #222; border-top-color: var(--gold); border-radius: 50%; animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ar-spinner-screen p { font-size: 0.8rem; color: var(--mid); }
 
-  .hint-item {
-    display: flex; align-items: center; gap: 0.35rem;
-    font-size: 0.68rem; color: rgba(255,255,255,0.4); white-space: nowrap;
-  }
+  /* AR stage — handTrackerCanvas is the video+NN surface, threeCanvas overlays it */
+  .ar-stage { position: relative; flex: 1; width: 100%; overflow: hidden; background: #000; }
+  #handTrackerCanvas { display: block; width: 100%; height: 100%; object-fit: cover; }
+  #threeCanvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
-  .hint-icon { font-size: 0.9rem; opacity: 0.5; }
+  /* HUD pill */
+  .ar-hud { position: absolute; bottom: 1.2rem; left: 50%; transform: translateX(-50%); z-index: 25; display: none; align-items: center; gap: 0.6rem; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 0.6rem 1.4rem; white-space: nowrap; transition: border-color 0.3s; }
+  .ar-hud.show { display: flex; }
+  .ar-hud.detected { border-color: rgba(201,168,76,0.5); }
+  .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mid); transition: background 0.3s; flex-shrink: 0; }
+  .pulse-dot.active { background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+  .ar-hud span { font-size: 0.78rem; color: rgba(255,255,255,0.75); }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
 
-  /* ── Side Panel ── */
-  .side-panel {
-    border-left: 1px solid var(--border);
-    background: var(--panel);
-    display: flex; flex-direction: column;
-    overflow-y: auto;
-  }
+  /* ── SIDE PANEL ── */
+  .side-panel { border-left: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; overflow-y: auto; }
+  .side-section { padding: 1.2rem 1.5rem; border-bottom: 1px solid var(--border); }
+  .side-label { font-size: 0.6rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--mid); margin-bottom: 0.75rem; }
+  .product-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem; letter-spacing: 0.06em; line-height: 1; margin-bottom: 0.25rem; }
+  .product-sub { font-size: 0.8rem; color: var(--mid); font-weight: 300; }
+  .price-row { display: flex; align-items: center; gap: 1rem; margin-top: 0.7rem; }
+  .price { font-size: 1.4rem; font-weight: 500; color: var(--gold); }
+  .price-old { font-size: 0.85rem; color: #444; text-decoration: line-through; }
+  .rating { display: flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; color: var(--mid); margin-top: 0.5rem; }
+  .stars { color: var(--gold); }
 
-  .side-section {
-    padding: 1.4rem 1.6rem;
-    border-bottom: 1px solid var(--border);
-  }
+  /* Shoe selector */
+  .shoe-selector { display: flex; flex-direction: column; gap: 0.5rem; }
+  .shoe-opt { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); transition: all 0.2s; }
+  .shoe-opt:hover { border-color: #333; }
+  .shoe-opt.active { border-color: var(--gold); background: var(--gold-dim); }
+  .shoe-thumb { width: 44px; height: 28px; border-radius: 4px; background: #1a1a1a; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+  .shoe-opt-info { flex: 1; }
+  .shoe-opt-name { font-size: 0.82rem; font-weight: 500; }
+  .shoe-opt-sub { font-size: 0.68rem; color: var(--mid); margin-top: 1px; }
+  .shoe-opt-check { font-size: 0.9rem; opacity: 0; transition: opacity 0.2s; color: var(--gold); }
+  .shoe-opt.active .shoe-opt-check { opacity: 1; }
 
-  .side-label {
-    font-size: 0.62rem; letter-spacing: 0.25em; text-transform: uppercase;
-    color: var(--mid); margin-bottom: 0.8rem;
-  }
-
-  /* Product info */
-  .product-name {
-    font-family: 'Bebas Neue', sans-serif; font-size: 2rem;
-    letter-spacing: 0.06em; line-height: 1; margin-bottom: 0.3rem;
-  }
-
-  .product-sub { font-size: 0.82rem; color: var(--mid); font-weight: 300; }
-
-  .price-row {
-    display: flex; align-items: center; gap: 1rem; margin-top: 0.8rem;
-  }
-
-  .price { font-size: 1.5rem; font-weight: 500; color: var(--gold); }
-  .price-old { font-size: 0.9rem; color: #444; text-decoration: line-through; }
-
-  .rating {
-    display: flex; align-items: center; gap: 0.3rem;
-    font-size: 0.75rem; color: var(--mid);
-  }
-
-  .stars { color: var(--gold); letter-spacing: 0.05em; }
-
-  /* Color swatches */
-  .swatches { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-
-  .swatch {
-    width: 32px; height: 32px; border-radius: 50%;
-    cursor: pointer; border: 2px solid transparent;
-    transition: all 0.2s ease; position: relative;
-  }
-
+  /* Colour */
+  .swatches { display: flex; gap: 0.55rem; flex-wrap: wrap; }
+  .swatch { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
   .swatch.active { border-color: var(--gold); }
   .swatch:hover { transform: scale(1.1); }
 
-  .swatch::after {
-    content: attr(title);
-    position: absolute; bottom: -1.4rem; left: 50%; transform: translateX(-50%);
-    font-size: 0.6rem; white-space: nowrap; color: var(--mid);
-    opacity: 0; transition: opacity 0.2s;
-  }
-
-  .swatch:hover::after, .swatch.active::after { opacity: 1; }
-
   /* Size grid */
-  .size-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
-
-  .size-btn {
-    padding: 0.6rem; text-align: center;
-    border: 1px solid var(--border); border-radius: 6px;
-    cursor: pointer; font-size: 0.82rem; font-weight: 400;
-    background: transparent; color: var(--cream);
-    transition: all 0.2s ease;
-  }
-
+  .size-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.45rem; }
+  .size-btn { padding: 0.55rem; text-align: center; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 0.8rem; background: transparent; color: var(--cream); transition: all 0.2s; }
   .size-btn:hover { border-color: var(--gold); color: var(--gold); }
   .size-btn.active { background: var(--gold); border-color: var(--gold); color: var(--ink); font-weight: 500; }
   .size-btn.unavailable { opacity: 0.25; cursor: not-allowed; text-decoration: line-through; }
+  #size-display { color: var(--cream); }
 
-  /* Features */
-  .features { display: flex; flex-direction: column; gap: 0.6rem; }
-  .feature-item {
-    display: flex; align-items: center; gap: 0.6rem;
-    font-size: 0.78rem; color: rgba(244,239,230,0.7);
-  }
-  .feature-icon { font-size: 0.9rem; }
-
-  /* CTA area */
-  .cta-section { padding: 1.4rem 1.6rem; display: flex; flex-direction: column; gap: 0.75rem; }
-
-  .btn-primary {
-    width: 100%; padding: 1rem;
-    background: var(--gold); color: var(--ink);
-    border: none; border-radius: var(--r); cursor: pointer;
-    font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 500;
-    letter-spacing: 0.06em; transition: all 0.2s ease;
-  }
-
+  /* CTA */
+  .cta-section { padding: 1.2rem 1.5rem; display: flex; flex-direction: column; gap: 0.65rem; margin-top: auto; }
+  .btn-primary { width: 100%; padding: 0.95rem; background: var(--gold); color: var(--ink); border: none; border-radius: var(--r); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 500; letter-spacing: 0.06em; transition: all 0.2s; }
   .btn-primary:hover { background: #e0bb5a; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.3); }
+  .btn-secondary { width: 100%; padding: 0.85rem; background: transparent; color: var(--cream); border: 1px solid var(--border); border-radius: var(--r); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; transition: all 0.2s; }
+  .btn-secondary:hover { border-color: rgba(255,255,255,0.3); }
+  .trust-strip { display: flex; justify-content: center; gap: 1.2rem; margin-top: 0.2rem; }
+  .trust-item { font-size: 0.63rem; color: #444; display: flex; align-items: center; gap: 0.3rem; }
 
-  .btn-secondary {
-    width: 100%; padding: 0.9rem;
-    background: transparent; color: var(--cream);
-    border: 1px solid var(--border); border-radius: var(--r); cursor: pointer;
-    font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
-    transition: all 0.2s ease;
-  }
-
-  .btn-secondary:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.03); }
-
-  .trust-strip {
-    display: flex; justify-content: center; gap: 1.2rem;
-    margin-top: 0.3rem;
-  }
-
-  .trust-item { font-size: 0.66rem; color: #444; display: flex; align-items: center; gap: 0.3rem; }
-
-  /* ── Status bar ── */
-  .statusbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0.7rem 1.8rem;
-    border-top: 1px solid var(--border);
-    font-size: 0.7rem; color: var(--mid);
-  }
-
-  .status-indicator { display: flex; align-items: center; gap: 0.5rem; }
+  /* Status bar */
+  .statusbar { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1.8rem; border-top: 1px solid var(--border); font-size: 0.68rem; color: var(--mid); }
+  .status-ind { display: flex; align-items: center; gap: 0.5rem; }
   .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
-  /* Notification toast */
-  .toast {
-    position: fixed; bottom: 4rem; left: 50%; transform: translateX(-50%) translateY(20px);
-    background: var(--panel); border: 1px solid var(--border); border-radius: 24px;
-    padding: 0.7rem 1.4rem; font-size: 0.8rem; z-index: 100;
-    opacity: 0; transition: all 0.3s ease; pointer-events: none;
-    display: flex; align-items: center; gap: 0.5rem;
-  }
-
+  /* Toast */
+  .toast { position: fixed; bottom: 3.5rem; left: 50%; transform: translateX(-50%) translateY(12px); background: var(--panel); border: 1px solid var(--border); border-radius: 24px; padding: 0.65rem 1.3rem; font-size: 0.78rem; z-index: 200; opacity: 0; transition: all 0.3s; pointer-events: none; display: flex; align-items: center; gap: 0.5rem; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .toast-icon { font-size: 1rem; }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.85); }
-  }
-
-  /* Responsive */
   @media (max-width: 768px) {
-    .main { grid-template-columns: 1fr; grid-template-rows: auto auto; }
-    .side-panel { border-left: none; border-top: 1px solid var(--border); }
-    model-viewer { min-height: 350px; }
-    .ar-view { min-height: 350px; }
+    .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+    .side-panel { border-left: none; border-top: 1px solid var(--border); max-height: 42vh; }
+    html, body { overflow: auto; }
+    .app { height: auto; }
   }
+
+  /*#canvases {
+    flex: 1; 
+    display: flex; 
+    position: relative;
+    width: 100%;
+    height: 100%;
+  } */
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+  }
+  #handTrackerCanvas {
+    top: 0;
+    left: 0;
+    z-index: 1;
+  }
+  #ARCanvas {
+    top: 0;
+    left: 0;
+    z-index: 4; 
+    }
 </style>
 </head>
 <body>
-
 <div class="app">
 
-  <!-- Top Nav -->
   <nav class="topbar">
-    <a href="index.html" class="back-btn">← Back to selection</a>
-    <a href="index.html" class="logo">SOLE<span>.</span></a>
-    <div class="product-chip">AR Try-On</div>
+    <a href="home.html" class="back-btn">← Back</a>
+    <a href="home.html" class="logo">SOLE<span>.</span></a>
+    <div class="product-chip">Good Design</div>
   </nav>
 
-  <!-- Main -->
   <div class="main">
 
-    <!-- Viewer -->
+    <!-- ═══ VIEWER ═══ -->
     <div class="viewer-wrap">
 
-      <!-- Mode toggle – centered, prominent -->
       <div class="mode-toggle">
-        <button class="mode-btn active" id="btn-3d" onclick="setMode('3d')">
-          <span>⬡</span> 3D View
-        </button>
-        <button class="mode-btn" id="btn-ar" onclick="setMode('ar')">
-          <span>👟</span> AR Try-On
-        </button>
+        <button class="mode-btn active" id="btn-3d" onclick="setMode('3d')">⬡ 3D View</button>
+        <button class="mode-btn" id="btn-ar" onclick="setMode('ar')">👟 AR Try-On</button>
       </div>
 
-      <!-- 3D Model Viewer -->
-      <model-viewer
-        id="model3d"
-        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-        alt="Nike Air Max shoe in 3D"
-        camera-controls
-        auto-rotate
-        auto-rotate-delay="1000"
-        rotation-per-second="30deg"
-        shadow-intensity="1"
-        environment-image="neutral"
-        exposure="0.9"
-        style="display:flex;"
-      >
-        <!-- Custom progress bar -->
-        <div slot="progress-bar" style="
-          position:absolute; bottom:0; left:0; right:0; height:3px;
-          background:linear-gradient(to right, var(--gold), transparent);
-        "></div>
-      </model-viewer>
-
-      <!-- 3D hint bar -->
-      <div class="viewer-hint" id="hint-3d">
-        <div class="hint-item"><span class="hint-icon">🖱</span> Drag to rotate</div>
-        <div class="hint-item"><span class="hint-icon">⤧</span> Scroll to zoom</div>
-        <div class="hint-item"><span class="hint-icon">⇧</span> Shift+drag to pan</div>
+      <!-- 3D VIEW — camera-orbit: 0deg azimuth, 90deg polar = side-on horizontal view -->
+      <div id="view-3d">
+        <model-viewer id="modelViewer"
+          src="assets/converseShoe.glb"
+          alt="Shoe 3D model"
+          camera-controls auto-rotate auto-rotate-delay="1200"
+          rotation-per-second="25deg" shadow-intensity="1"
+          environment-image="neutral" exposure="0.95"
+          camera-orbit="90deg 90deg 18.5m">
+        </model-viewer>
+        <div class="viewer-hint">
+          <div class="hint-item">🖱 Drag to rotate</div>
+          <div class="hint-item">⤧ Scroll to zoom</div>
+          <div class="hint-item">⇧ Shift+drag to pan</div>
+        </div>
       </div>
 
-      <!-- AR View -->
-      <div class="ar-view" id="ar-view">
-
-        <!-- Start screen (before camera granted) -->
-        <div class="ar-start" id="ar-start">
-          <div class="ar-start-icon">👟</div>
-          <h3>AR Try-On</h3>
-          <p>Point your camera at your feet and the shoe will appear as if you're wearing it.</p>
-          <button class="ar-start-btn" onclick="startAR()">Enable Camera</button>
+      <!-- AR VIEW -->
+      <div id="view-ar">
+        <!-- Step 1: prompt -->
+        <div class="ar-start-screen" id="ar-start-screen">
+          <div class="ar-icon">👟</div>
+          <h3>AR Foot Try-On</h3>
+          <p>Your selected shoe will appear on your feet in real time using your camera.</p>
+          <p class="ar-note">Works on desktop (webcam) and mobile (rear camera). Hold your feet steady in frame for best results.</p>
+          <button class="ar-start-btn" id="ar-start-btn" onclick="startAR()">Enable Camera &amp; Start</button>
         </div>
 
-        <video id="ar-video" autoplay playsinline muted style="display:none;"></video>
-        <canvas id="ar-canvas" class="ar-canvas" style="display:none;"></canvas>
+        <!-- Step 2: spinner -->
+        <div class="ar-spinner-screen" id="ar-spinner">
+          <div class="spinner"></div>
+          <p id="ar-spinner-msg">Loading foot tracker…</p>
+        </div>
 
-        <div class="ar-overlay" id="ar-overlay" style="display:none;">
-          <div class="ar-hint">
-            <div class="pulse-dot"></div>
-            Detecting feet — point camera downward
+        <!-- Step 3: live canvases (boilerplate — tracking logic to be wired in) -->
+        <div class="ar-stage" id="ar-stage" style="display:none;">
+          <div id='canvases'>
+            <!-- Canvas used by the hand tracker and displaying the video -->
+            <canvas id='handTrackerCanvas'></canvas>
+
+            <!-- Canvas displayed above, with the THREE.js scene -->
+            <canvas id='ARCanvas'></canvas>
           </div>
         </div>
 
-      </div>
-    </div>
+        <!-- HUD -->
+        <div class="ar-hud" id="ar-hud">
+          <div class="pulse-dot" id="ar-pulse"></div>
+          <span id="ar-hud-text">Scanning for foot…</span>
+        </div>
 
-    <!-- Side Panel -->
+      </div><!-- /view-ar -->
+    </div><!-- /viewer-wrap -->
+
+    <!-- ═══ SIDE PANEL ═══ -->
     <aside class="side-panel">
 
-      <!-- Product Info -->
       <div class="side-section">
         <div class="side-label">Featured Shoe</div>
-        <div class="product-name">Air Max Fusion</div>
-        <div class="product-sub">Lifestyle / Running · Unisex</div>
+        <div class="product-name" id="panel-name">Chuck 70 Hi</div>
+        <div class="product-sub">Lifestyle · Unisex</div>
         <div class="price-row">
-          <span class="price">$189</span>
-          <span class="price-old">$240</span>
+          <span class="price" id="panel-price">$130</span>
+          <span class="price-old" id="panel-old">$165</span>
         </div>
-        <div class="rating" style="margin-top:0.6rem;">
+        <div class="rating">
           <span class="stars">★★★★☆</span>
-          <span>4.3 · 2,184 reviews</span>
+          <span style="margin-left:0.3rem">4.4 · 3,812 reviews</span>
         </div>
       </div>
 
-      <!-- Color -->
       <div class="side-section">
-        <div class="side-label">Colour — <span id="color-name" style="color:var(--cream);">Midnight Black</span></div>
+        <div class="side-label">Select Shoe</div>
+        <div class="shoe-selector">
+          <div class="shoe-opt" onclick="selectShoe('assets/shoe.glb','Classic Low','$110','$145',this)">
+            <div class="shoe-thumb">👟</div>
+            <div class="shoe-opt-info">
+              <div class="shoe-opt-name">Classic Low</div>
+              <div class="shoe-opt-sub">Timeless canvas low-top</div>
+            </div>
+            <span class="shoe-opt-check">✓</span>
+          </div>
+          <div class="shoe-opt active" onclick="selectShoe('assets/converseShoe.glb','Chuck 70 Hi','$130','$165',this)">
+            <div class="shoe-thumb">👟</div>
+            <div class="shoe-opt-info">
+              <div class="shoe-opt-name">Chuck 70 Hi</div>
+              <div class="shoe-opt-sub">High-top archive edition</div>
+            </div>
+            <span class="shoe-opt-check">✓</span>
+          </div>
+          <div class="shoe-opt" onclick="selectShoe('assets/converseShoe2.glb','Run Star Hike','$150','$190',this)">
+            <div class="shoe-thumb">👟</div>
+            <div class="shoe-opt-info">
+              <div class="shoe-opt-name">Run Star Hike</div>
+              <div class="shoe-opt-sub">Platform lug sole</div>
+            </div>
+            <span class="shoe-opt-check">✓</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-section">
+        <div class="side-label">Colour — <span id="color-name">Optical White</span></div>
         <div class="swatches">
-          <div class="swatch active" style="background:#1a1a1a; border-color: var(--gold);" title="Midnight Black" onclick="selectColor(this,'Midnight Black')"></div>
-          <div class="swatch" style="background:#f5f0e8;" title="Cloud White" onclick="selectColor(this,'Cloud White')"></div>
-          <div class="swatch" style="background:#c9a84c;" title="Desert Gold" onclick="selectColor(this,'Desert Gold')"></div>
-          <div class="swatch" style="background:#4c7ac9;" title="Ocean Blue" onclick="selectColor(this,'Ocean Blue')"></div>
-          <div class="swatch" style="background:#c94c4c;" title="Ember Red" onclick="selectColor(this,'Ember Red')"></div>
+          <div class="swatch active" style="background:#f0ece3" onclick="selectColor(this,'Optical White')"></div>
+          <div class="swatch" style="background:#1a1a1a" onclick="selectColor(this,'Midnight Black')"></div>
+          <div class="swatch" style="background:#c9a84c" onclick="selectColor(this,'Desert Gold')"></div>
+          <div class="swatch" style="background:#4c7ac9" onclick="selectColor(this,'Cobalt Blue')"></div>
+          <div class="swatch" style="background:#c94c4c" onclick="selectColor(this,'Ember Red')"></div>
         </div>
       </div>
 
-      <!-- Size -->
       <div class="side-section">
-        <div class="side-label">Size (EU) — <span id="size-label" style="color:var(--cream);">Select a size</span></div>
+        <div class="side-label">Size (EU) — <span id="size-display">Select a size</span></div>
         <div class="size-grid">
-          <button class="size-btn unavailable" onclick="selectSize(this,'38')">38</button>
+          <button class="size-btn unavailable">37</button>
+          <button class="size-btn" onclick="selectSize(this,'38')">38</button>
           <button class="size-btn" onclick="selectSize(this,'39')">39</button>
           <button class="size-btn" onclick="selectSize(this,'40')">40</button>
-          <button class="size-btn" onclick="selectSize(this,'41')">41</button>
+          <button class="size-btn active" onclick="selectSize(this,'41')">41</button>
           <button class="size-btn" onclick="selectSize(this,'42')">42</button>
-          <button class="size-btn active" onclick="selectSize(this,'43')">43</button>
-          <button class="size-btn" onclick="selectSize(this,'44')">44</button>
-          <button class="size-btn unavailable" onclick="selectSize(this,'45')">45</button>
+          <button class="size-btn" onclick="selectSize(this,'43')">43</button>
+          <button class="size-btn unavailable">44</button>
         </div>
       </div>
 
-      <!-- Features -->
-      <div class="side-section">
-        <div class="side-label">Features</div>
-        <div class="features">
-          <div class="feature-item"><span class="feature-icon">⚡</span> Responsive Air Max cushioning</div>
-          <div class="feature-item"><span class="feature-icon">🌿</span> 30% recycled materials</div>
-          <div class="feature-item"><span class="feature-icon">🛡</span> Water-resistant upper</div>
-          <div class="feature-item"><span class="feature-icon">👟</span> Lightweight foam midsole</div>
-        </div>
-      </div>
-
-      <!-- CTA -->
       <div class="cta-section">
-        <button class="btn-primary" onclick="addToBag()">Add to Bag — $189</button>
-        <button class="btn-secondary" onclick="showToast('❤️', 'Saved to wishlist')">Save to Wishlist</button>
+        <button class="btn-primary" onclick="addToBag()">Add to Bag — <span id="cta-price">$130</span></button>
+        <button class="btn-secondary" onclick="showToast('❤️','Saved to wishlist')">Save to Wishlist</button>
         <div class="trust-strip">
           <div class="trust-item">🚚 Free shipping</div>
           <div class="trust-item">↩ Free 30-day returns</div>
@@ -497,195 +335,212 @@
     </aside>
   </div>
 
-  <!-- Status bar -->
   <footer class="statusbar">
-    <div class="status-indicator">
+    <div class="status-ind">
       <div class="status-dot"></div>
-      <span id="status-text">3D Model loaded — drag to explore</span>
+      <span id="status-text">3D Model ready — drag to explore</span>
     </div>
-    <span>WebAR Powered · SOLE v2.1</span>
+    <span>WebAR.rocks · SOLE v3.1</span>
   </footer>
-
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast">
-  <span class="toast-icon" id="toast-icon">✓</span>
-  <span id="toast-msg">Added to bag</span>
+  <span id="toast-icon">✓</span>
+  <span id="toast-msg"></span>
 </div>
 
 <script>
-  let currentMode = '3d';
-  let arStarted = false;
-  let videoStream = null;
+'use strict';
 
-  function setMode(mode) {
-    currentMode = mode;
-    const mv = document.getElementById('model3d');
-    const arView = document.getElementById('ar-view');
-    const hint3d = document.getElementById('hint-3d');
-    const btn3d = document.getElementById('btn-3d');
-    const btnAR = document.getElementById('btn-ar');
-    const statusText = document.getElementById('status-text');
+/* ── STATE ── */
+let currentMode     = '3d';
+let currentShoe3D   = 'assets/converseShoe.glb';
+let selectedSizeLbl = 'EU 41';
+let toastTmr;
 
-    if (mode === '3d') {
-      mv.style.display = 'flex';
-      arView.classList.remove('active');
-      hint3d.style.display = 'flex';
-      btn3d.classList.add('active'); btnAR.classList.remove('active');
-      statusText.textContent = '3D Model loaded — drag to explore';
-      // Stop AR camera if running
-      if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; arStarted = false; }
-    } else {
-      mv.style.display = 'none';
-      arView.classList.add('active');
-      hint3d.style.display = 'none';
-      btnAR.classList.add('active'); btn3d.classList.remove('active');
-      statusText.textContent = 'AR Try-On — enable camera to begin';
+/* ── AR STATE ── */
+let _arStarted = false;        // has startWebar() been called at least once?
+let _arScriptLoaded = false;   // has startWebar.js been injected into the page?
+
+/* ── STOP AR — kill camera stream and destroy the tracker ── */
+function stopAR() {
+  try {
+    // Stop all active camera tracks so the browser releases the webcam
+    if (navigator.mediaDevices && typeof HandTrackerThreeHelper !== 'undefined') {
+      HandTrackerThreeHelper.destroy();
     }
+  } catch(e) {
+    console.log('HandTrackerThreeHelper.destroy():', e);
   }
 
-  async function startAR() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
-      videoStream = stream;
-      arStarted = true;
-
-      const video = document.getElementById('ar-video');
-      const canvas = document.getElementById('ar-canvas');
-      const arStart = document.getElementById('ar-start');
-      const arOverlay = document.getElementById('ar-overlay');
-
-      video.srcObject = stream;
-      video.style.display = 'block';
-      canvas.style.display = 'block';
-      arStart.style.display = 'none';
-      arOverlay.style.display = 'flex';
-
-      video.onloadedmetadata = () => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        renderARFrame(video, canvas);
-      };
-
-      document.getElementById('status-text').textContent = 'AR active — point camera at your feet';
-    } catch (err) {
-      showToast('⚠️', 'Camera access denied. Please allow camera in browser settings.');
+  // Hard-stop every video/camera media track on the page
+  document.querySelectorAll('video').forEach(function(v) {
+    if (v.srcObject) {
+      v.srcObject.getTracks().forEach(function(t) { t.stop(); });
+      v.srcObject = null;
     }
+  });
+
+  // Also try stopping tracks from any canvas that might hold a stream
+  const htCanvas = document.getElementById('handTrackerCanvas');
+  if (htCanvas && htCanvas._stream) {
+    htCanvas._stream.getTracks().forEach(function(t) { t.stop(); });
   }
 
-  // AR canvas rendering: draw video feed + simulated shoe overlay
-  let frameCount = 0;
-  function renderARFrame(video, canvas) {
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  _arStarted = false;
+}
 
-    // Simulated shoe overlay - positioned in lower center (where feet would be)
-    const cx = canvas.width * 0.5;
-    const cy = canvas.height * 0.78;
-    const t = Date.now() / 1000;
+/* ── MODE TOGGLE ── */
+function setMode(mode) {
+  currentMode = mode;
+  const v3d = document.getElementById('view-3d');
+  const vAR  = document.getElementById('view-ar');
 
-    // Subtle breathing animation
-    const scale = 1 + Math.sin(t * 1.5) * 0.015;
+  if (mode === '3d') {
+    // Stop the camera when leaving AR view
+    stopAR();
 
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.scale(scale, scale);
+    v3d.style.display = 'flex';
+    vAR.classList.remove('active');
+    document.getElementById('btn-3d').classList.add('active');
+    document.getElementById('btn-ar').classList.remove('active');
+    document.getElementById('status-text').textContent = '3D Model ready — drag to explore';
 
-    // Draw a stylized shoe shape
-    drawShoeOverlay(ctx, -90, -25, 180, 55);
-    drawShoeOverlay(ctx, -95, 10, 185, 55, true);
+    // Reset the AR panel so the user can start fresh next time
+    document.getElementById('ar-start-screen').classList.remove('hidden');
+    document.getElementById('ar-spinner').classList.remove('show');
+    document.getElementById('ar-stage').style.display = 'none';
+    document.getElementById('ar-hud').classList.remove('show');
+    document.getElementById('ar-start-btn').disabled = false;
+  } else {
+    v3d.style.display = 'none';
+    vAR.classList.add('active');
+    document.getElementById('btn-ar').classList.add('active');
+    document.getElementById('btn-3d').classList.remove('active');
+    document.getElementById('status-text').textContent = 'AR Try-On — enable camera to start';
+  }
+}
 
-    // Scan line effect to indicate detection
-    ctx.strokeStyle = 'rgba(201,168,76,0.6)';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([8, 4]);
-    ctx.strokeRect(-100, -40, 200, 95);
+/* ═══════════════════════════════════════════
+   SHOW AR STAGE (after init success)
+═══════════════════════════════════════════ */
+function showARStage() {
+  document.getElementById('ar-spinner').classList.remove('show');
+  document.getElementById('ar-stage').style.display = 'block';
+  document.getElementById('ar-hud').classList.add('show');
+}
 
-    // Corner brackets
-    ctx.setLineDash([]);
-    ctx.strokeStyle = 'rgba(201,168,76,0.9)';
-    ctx.lineWidth = 2;
-    const corners = [[-100,-40],[100,-40],[100,55],[-100,55]];
-    corners.forEach(([x,y]) => {
-      ctx.beginPath();
-      const sx = x < 0 ? 1 : -1, sy = y < 0 ? 1 : -1;
-      ctx.moveTo(x + sx*14, y); ctx.lineTo(x, y); ctx.lineTo(x, y + sy*14);
-      ctx.stroke();
+/* ── AR START ── */
+// Called by the button click. Explicitly requests camera permission first so
+// the browser prompt is resolved before startWebar() (and HandTrackerThreeHelper)
+// touch the canvases — this ensures the live stream is already active when the
+// tracker initialises, which is what makes the feed actually appear.
+function startAR() {
+  document.getElementById('ar-start-screen').classList.add('hidden');
+  document.getElementById('ar-spinner').classList.add('show');
+  document.getElementById('ar-spinner-msg').textContent = 'Requesting camera…';
+  document.getElementById('status-text').textContent = 'Waiting for camera…';
+
+  // Step 1 — request permission and hold the stream open
+  navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+    .then(function(permissionStream) {
+      // Permission granted — hand off to the script loader
+      document.getElementById('ar-spinner-msg').textContent = 'Loading foot tracker…';
+      _initWebarAfterPermission(permissionStream);
+    })
+    .catch(function(err) {
+      // User denied or device unavailable — restore the start screen
+      console.warn('Camera permission denied or unavailable:', err);
+      document.getElementById('ar-start-screen').classList.remove('hidden');
+      document.getElementById('ar-spinner').classList.remove('show');
+      document.getElementById('ar-start-btn').disabled = false;
+      document.getElementById('status-text').textContent = 'Camera access required for AR';
     });
+}
 
-    ctx.restore();
+// Step 2 — once we have the permission stream, load startWebar.js (if needed)
+// then call startWebar(). We stop the permission stream immediately before
+// handing off so HandTrackerThreeHelper can open its own stream cleanly.
+function _initWebarAfterPermission(permissionStream) {
+  // Release the probe stream — the tracker will open its own
+  permissionStream.getTracks().forEach(function(t) { t.stop(); });
 
-    // Label
-    ctx.fillStyle = 'rgba(201,168,76,0.9)';
-    ctx.font = '600 13px DM Sans, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Air Max Fusion detected', cx, cy - 52);
-
-    frameCount++;
-    requestAnimationFrame(() => renderARFrame(video, canvas));
+  function _launch() {
+    _arStarted = true;
+    startWebar();  // uses #handTrackerCanvas and #ARCanvas
+    showARStage();
   }
 
-  function drawShoeOverlay(ctx, x, y, w, h, flip = false) {
-    ctx.save();
-    if (flip) ctx.scale(-1, 1);
-    ctx.beginPath();
-    // Simplified shoe silhouette path
-    ctx.moveTo(x + 20, y + h);
-    ctx.lineTo(x, y + h);
-    ctx.quadraticCurveTo(x - 5, y + h * 0.7, x + 10, y + h * 0.5);
-    ctx.lineTo(x + 10, y + h * 0.3);
-    ctx.quadraticCurveTo(x + 20, y, x + w * 0.4, y);
-    ctx.quadraticCurveTo(x + w * 0.7, y - 8, x + w, y + h * 0.25);
-    ctx.lineTo(x + w, y + h);
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(20, 20, 20, 0.82)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(201,168,76,0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Midsole line
-    ctx.beginPath();
-    ctx.moveTo(x + 5, y + h * 0.85);
-    ctx.lineTo(x + w - 5, y + h * 0.85);
-    ctx.strokeStyle = 'rgba(201,168,76,0.4)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.restore();
+  if (_arScriptLoaded) {
+    _launch();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'startWebar.js';
+    s.onload = function() {
+      console.log('startWebar.js loaded');
+      _arScriptLoaded = true;
+      _launch();
+    };
+    s.onerror = function() {
+      console.error('Failed to load startWebar.js');
+      document.getElementById('ar-start-screen').classList.remove('hidden');
+      document.getElementById('ar-spinner').classList.remove('show');
+      document.getElementById('ar-start-btn').disabled = false;
+      document.getElementById('status-text').textContent = 'Failed to load AR tracker';
+    };
+    document.body.appendChild(s);
   }
+}
 
-  function selectColor(el, name) {
-    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
-    el.classList.add('active');
-    document.getElementById('color-name').textContent = name;
-    showToast('🎨', `Colour: ${name}`);
-  }
+/* ── SHOE SELECTOR ── */
+function selectShoe(src, name, price, oldPrice, el) {
+  document.querySelectorAll('.shoe-opt').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-name').textContent  = name;
+  document.getElementById('panel-price').textContent = price;
+  document.getElementById('panel-old').textContent   = oldPrice;
+  document.getElementById('cta-price').textContent   = price;
+  currentShoe3D = src;
+  document.getElementById('modelViewer').setAttribute('src', src);
+  showToast('👟', `Selected: ${name}`);
+}
 
-  function selectSize(el, size) {
-    if (el.classList.contains('unavailable')) return;
-    document.querySelectorAll('.size-btn').forEach(s => s.classList.remove('active'));
-    el.classList.add('active');
-    document.getElementById('size-label').textContent = `EU ${size}`;
-  }
+/* ── COLOUR ── */
+function selectColor(el, name) {
+  document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('color-name').textContent = name;
+  showToast('🎨', `Colour: ${name}`);
+}
 
-  function addToBag() {
-    const sizeLabel = document.getElementById('size-label').textContent;
-    if (sizeLabel === 'Select a size') { showToast('⚠️', 'Please select a size first'); return; }
-    showToast('✓', `Added to bag — ${sizeLabel}`);
-  }
+/* ── SIZE ── */
+function selectSize(el, size) {
+  if (el.classList.contains('unavailable')) return;
+  document.querySelectorAll('.size-btn').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  selectedSizeLbl = `EU ${size}`;
+  document.getElementById('size-display').textContent = selectedSizeLbl;
+}
 
-  let toastTimer;
-  function showToast(icon, msg) {
-    const t = document.getElementById('toast');
-    document.getElementById('toast-icon').textContent = icon;
-    document.getElementById('toast-msg').textContent = msg;
-    t.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
-  }
+/* ── ADD TO BAG ── */
+function addToBag() {
+  const sl = document.getElementById('size-display').textContent;
+  if (sl === 'Select a size') { showToast('⚠️', 'Please select a size first'); return; }
+  showToast('✓', `Added to bag — ${sl}`);
+}
+
+/* ── TOAST ── */
+function showToast(icon, msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast-msg').textContent  = msg;
+  t.classList.add('show');
+  clearTimeout(toastTmr);
+  toastTmr = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+
 </script>
 </body>
 </html>
+

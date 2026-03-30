@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLE — WebAR Try-On</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #0a0a0a;
+    --cream: #f5f0e8;
+    --accent: #ff3d2e;
+    --gold: #c9a84c;
+    --mid: #7a7a7a;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--ink);
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.6;
+  }
+
+  .stage {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    position: relative;
+  }
+
+  /* Center spine */
+  .spine {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent 0%, var(--gold) 20%, var(--gold) 80%, transparent 100%);
+    transform: translateX(-50%);
+    z-index: 10;
+  }
+
+  .spine-dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 24px var(--gold);
+  }
+
+  /* Header */
+  .header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    padding: 2rem 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.4rem;
+    letter-spacing: 0.12em;
+    color: var(--cream);
+    text-decoration: none;
+  }
+
+  .logo span {
+    color: var(--accent);
+  }
+
+  .header-tag {
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--mid);
+    border: 1px solid #333;
+    padding: 0.4rem 0.9rem;
+    border-radius: 20px;
+  }
+
+  /* Panel shared */
+  .panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6rem 4rem 4rem;
+    cursor: pointer;
+    transition: background 0.5s ease;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  /* Good panel */
+  .panel-good {
+    background: linear-gradient(135deg, #0d0d0d 0%, #111 100%);
+  }
+
+  .panel-good::after {
+    background: radial-gradient(ellipse at 40% 60%, rgba(201,168,76,0.08) 0%, transparent 70%);
+  }
+
+  .panel-good:hover::after { opacity: 1; }
+
+  .panel-good:hover { background: linear-gradient(135deg, #111 0%, #151510 100%); }
+
+  /* Bad panel */
+  .panel-bad {
+    background: linear-gradient(135deg, #0d0d0d 0%, #0f0a0a 100%);
+  }
+
+  .panel-bad::after {
+    background: radial-gradient(ellipse at 60% 40%, rgba(255,61,46,0.07) 0%, transparent 70%);
+  }
+
+  .panel-bad:hover::after { opacity: 1; }
+  .panel-bad:hover { background: linear-gradient(135deg, #111 0%, #140a0a 100%); }
+
+  /* Panel label */
+  .panel-eyebrow {
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: fadeUp 0.8s ease forwards;
+  }
+
+  .panel-good .panel-eyebrow { color: var(--gold); animation-delay: 0.3s; }
+  .panel-bad .panel-eyebrow { color: var(--accent); animation-delay: 0.5s; }
+
+  .panel-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3.5rem, 6vw, 6rem);
+    letter-spacing: 0.06em;
+    line-height: 0.9;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: fadeUp 0.8s ease forwards;
+  }
+
+  .panel-good .panel-title { animation-delay: 0.4s; }
+  .panel-bad .panel-title { animation-delay: 0.6s; }
+
+  .panel-subtitle {
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: var(--mid);
+    text-align: center;
+    max-width: 280px;
+    margin-bottom: 2.5rem;
+    font-weight: 300;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: fadeUp 0.8s ease forwards;
+  }
+
+  .panel-good .panel-subtitle { animation-delay: 0.5s; }
+  .panel-bad .panel-subtitle { animation-delay: 0.7s; }
+
+  /* CTA button */
+  .panel-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.85rem 2rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards;
+    border: none;
+    cursor: pointer;
+  }
+
+  .panel-good .panel-cta {
+    background: var(--gold);
+    color: var(--ink);
+    animation-delay: 0.6s;
+  }
+
+  .panel-good:hover .panel-cta {
+    background: #e0bb5a;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(201,168,76,0.3);
+  }
+
+  .panel-bad .panel-cta {
+    background: var(--accent);
+    color: white;
+    animation-delay: 0.8s;
+  }
+
+  .panel-bad:hover .panel-cta {
+    background: #ff5547;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(255,61,46,0.3);
+  }
+
+  .cta-arrow {
+    transition: transform 0.3s ease;
+    font-size: 1rem;
+  }
+
+  .panel:hover .cta-arrow { transform: translateX(4px); }
+
+  /* Decorative shoe silhouette */
+  .shoe-silhouette {
+    position: absolute;
+    bottom: 3rem;
+    width: 180px;
+    height: 80px;
+    opacity: 0.04;
+    transition: opacity 0.4s ease;
+  }
+
+  .panel:hover .shoe-silhouette { opacity: 0.09; }
+
+  .panel-good .shoe-silhouette { right: 2rem; }
+  .panel-bad .shoe-silhouette { left: 2rem; transform: scaleX(-1); }
+
+  /* Quality badges */
+  .badge-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards;
+  }
+
+  .panel-good .badge-stack { animation-delay: 0.55s; }
+  .panel-bad .badge-stack { animation-delay: 0.75s; }
+
+  .badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    color: #555;
+  }
+
+  .badge-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .panel-good .badge-dot { background: var(--gold); }
+  .panel-bad .badge-dot { background: var(--accent); opacity: 0.5; }
+
+  /* Bottom label */
+  .bottom-label {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #333;
+    white-space: nowrap;
+    z-index: 20;
+    opacity: 0;
+    animation: fadeUp 1s ease 1s forwards;
+  }
+
+  /* Divider label */
+  .vs-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 30;
+    background: var(--ink);
+    border: 1px solid #2a2a2a;
+    border-radius: 50%;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.05em;
+    color: var(--mid);
+    opacity: 0;
+    animation: scaleIn 0.6s ease 0.9s forwards;
+  }
+
+  /* Hover reveal lines */
+  .reveal-line {
+    position: absolute;
+    top: 0;
+    height: 3px;
+    width: 0;
+    transition: width 0.4s ease;
+  }
+
+  .panel-good .reveal-line {
+    left: 0;
+    background: linear-gradient(to right, var(--gold), transparent);
+  }
+
+  .panel-bad .reveal-line {
+    right: 0;
+    background: linear-gradient(to left, var(--accent), transparent);
+  }
+
+  .panel:hover .reveal-line { width: 100%; }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  /* Mobile */
+  @media (max-width: 640px) {
+    .stage { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; overflow-y: auto; overflow-x: hidden; }
+    .spine { top: 50%; bottom: auto; left: 0; right: 0; width: auto; height: 1px; background: linear-gradient(to right, transparent, var(--gold), transparent); }
+    .spine-dot { top: 0; }
+    .vs-badge { top: 50%; left: 50%; }
+    .header { padding: 1.2rem 1.5rem; }
+    .logo { font-size: 1.8rem; }
+    .panel { padding: 5rem 2rem 3rem; }
+    .panel-title { font-size: 3rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <!-- Spine divider -->
+  <div class="spine"><div class="spine-dot"></div></div>
+  <div class="vs-badge">VS</div>
+
+  <!-- Good Design Panel -->
+  <a class="panel panel-good" href="good-design.html">
+    <div class="reveal-line"></div>
+    <svg class="shoe-silhouette" viewBox="0 0 200 80" fill="white" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10,60 Q30,20 80,18 Q120,16 150,28 Q180,38 190,55 Q185,65 160,68 Q80,72 30,68 Q10,66 10,60Z"/>
+    </svg>
+    <div class="panel-eyebrow">Version A</div>
+    <div class="panel-title">Good<br>Design</div>
+    <div class="panel-subtitle">
+      Intuitive controls, thoughtful layout, and a seamless AR try-on experience built for real shoppers.
+    </div>
+    <div class="badge-stack">
+      <div class="badge"><div class="badge-dot"></div>Intuitive UI & clear navigation</div>
+      <div class="badge"><div class="badge-dot"></div>Smooth 3D viewer with gestures</div>
+      <div class="badge"><div class="badge-dot"></div>Responsive foot-tracking AR</div>
+      <div class="badge"><div class="badge-dot"></div>Polished visual hierarchy</div>
+    </div>
+    <button class="panel-cta">Launch Experience <span class="cta-arrow">→</span></button>
+  </a>
+
+  <!-- Bad Design Panel -->
+  <a class="panel panel-bad" href="bad-design.html">
+    <div class="reveal-line"></div>
+    <svg class="shoe-silhouette" viewBox="0 0 200 80" fill="white" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10,60 Q30,20 80,18 Q120,16 150,28 Q180,38 190,55 Q185,65 160,68 Q80,72 30,68 Q10,66 10,60Z"/>
+    </svg>
+    <div class="panel-eyebrow">Version B</div>
+    <div class="panel-title">Bad<br>Design</div>
+    <div class="panel-subtitle">
+      Confusing layout, poor affordances, and a frustrating experience that violates every UX principle.
+    </div>
+    <div class="badge-stack">
+      <div class="badge"><div class="badge-dot"></div>Cluttered & confusing layout</div>
+      <div class="badge"><div class="badge-dot"></div>Broken controls & wrong labels</div>
+      <div class="badge"><div class="badge-dot"></div>Hidden & misplaced buttons</div>
+      <div class="badge"><div class="badge-dot"></div>Jarring visual noise</div>
+    </div>
+    <button class="panel-cta">Enter if you dare <span class="cta-arrow">→</span></button>
+  </a>
+
+</div>
+
+<!-- Header (on top of everything) -->
+<header class="header">
+  <div class="logo">SOLE<span>.</span></div>
+  <div class="header-tag">WebAR Comparison Study</div>
+</header>
+
+<div class="bottom-label">Select a design experience to begin</div>
+
+</body>
+</html>
