@@ -136,13 +136,9 @@
     left: 0;
   }
   #handTrackerCanvas {
-    top: 0;
-    left: 0;
     z-index: 1;
   }
   #ARCanvas {
-    top: 0;
-    left: 0;
     z-index: 4; 
   }
 
@@ -197,7 +193,7 @@
       <!-- Product info -->
       <div class="side-section">
         <div class="side-label">Item</div><!-- vague -->
-        <div class="product-name" id="panel-name">Chuck 70 Hi</div>
+        <div class="product-name" id="panel-name">Converse 70 Low</div>
         <div class="product-sub">Category / Type</div><!-- useless -->
         <div class="price-row">
           <span class="price" id="panel-price">$130</span><!-- grey -->
@@ -213,27 +209,11 @@
       <div class="side-section">
         <div class="side-label">Products</div>
         <div class="shoe-selector">
-          <div class="shoe-opt" onclick="selectShoe('assets/shoe.glb','Classic Low','$110','$145',this)">
-            <div class="shoe-thumb">👟</div>
-            <div class="shoe-opt-info">
-              <div class="shoe-opt-name">Classic Low</div>
-              <div class="shoe-opt-sub">Option A</div>
-            </div>
-            <span class="shoe-opt-check">✓</span>
-          </div>
           <div class="shoe-opt active" onclick="selectShoe('assets/converseShoe.glb','Chuck 70 Hi','$130','$165',this)">
             <div class="shoe-thumb">👟</div>
             <div class="shoe-opt-info">
               <div class="shoe-opt-name">Chuck 70 Hi</div>
               <div class="shoe-opt-sub">Option B</div><!-- no AR hint — user doesn't know -->
-            </div>
-            <span class="shoe-opt-check">✓</span>
-          </div>
-          <div class="shoe-opt" onclick="selectShoe('assets/converseShoe2.glb','Run Star Hike','$150','$190',this)">
-            <div class="shoe-thumb">👟</div>
-            <div class="shoe-opt-info">
-              <div class="shoe-opt-name">Run Star Hike</div>
-              <div class="shoe-opt-sub">Option C</div>
             </div>
             <span class="shoe-opt-check">✓</span>
           </div>
@@ -278,9 +258,9 @@
           src="assets/converseShoe.glb"
           alt="shoe"
           camera-controls auto-rotate auto-rotate-delay="0"
-          rotation-per-second="55deg"
+          rotation-per-second="50deg"
           shadow-intensity="0.15" environment-image="neutral" exposure="0.45"
-          camera-orbit="50deg 95deg 2.8m">
+          camera-orbit="80deg 145deg 10.8m">
         </model-viewer>
         <div class="viewer-hint">
           <div class="hint-item">🖱 interact</div>
